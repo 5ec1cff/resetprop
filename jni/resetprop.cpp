@@ -6,6 +6,8 @@
 #include "logging.h"
 #include "resetprop.hpp"
 
+#include <system_properties/prop_info.h>
+
 using namespace std;
 
 #ifdef APPLET_STUB_MAIN
@@ -62,6 +64,7 @@ Read mode flags:
 
 Write mode flags:
    -n      set properties bypassing property_service
+   -N      set ro properties using property_service
    -p      always write persistent prop changes to storage
 
 )EOF", arg0);
@@ -131,7 +134,7 @@ static int set_prop(const char *name, const char *value, PropFlags flags) {
 
     // Always delete existing read-only properties, because they could be
     // long properties and cannot directly go through __system_property_update
-    if (pi != nullptr && str_starts(name, "ro.")) {
+    if (pi != nullptr && str_starts(name, "ro.") && (!flags.isSkipSvc() || flags.isSkipSvc() && pi->is_long())) {
         // Skip pruning nodes as we will add it back ASAP
         __system_property_delete(name, false);
         pi = nullptr;
@@ -272,6 +275,8 @@ int main(int argc, char *argv[]) {
     --argc;
     ++argv;
 
+    bool ro_use_svc = false;
+
     // Parse flags and -- options
     while (argc && argv[0][0] == '-') {
         bool stop_parse = false;
@@ -306,6 +311,9 @@ int main(int argc, char *argv[]) {
                 continue;
             case 'Z':
                 flags.setContext();
+                continue;
+            case 'N':
+                ro_use_svc = true;
                 continue;
             case '\0':
                 break;
@@ -342,8 +350,13 @@ int main(int argc, char *argv[]) {
         printf("%s\n", val.data());
         return 0;
     }
-    case 2:
-        return set_prop(argv[0], argv[1], flags);
+    case 2: {
+        auto name = argv[0];
+        if (str_starts(name, "ro.") && !ro_use_svc) {
+            flags.setSkipSvc();
+        }
+        return set_prop(name, argv[1], flags);
+    }
     default:
         usage(argv0);
     }
