@@ -1,0 +1,6 @@
+[submodule "jni/system_properties"]
+	path = jni/system_properties
+	url = git@github.com:5ec1cff/system_properties.git
+[submodule "jni/nanopb"]
+	path = jni/nanopb
+	url = https://github.com/nanopb/nanopb
